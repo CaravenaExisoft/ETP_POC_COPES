@@ -1,0 +1,68 @@
+name: CI/CD etl-pmc
+
+# Requiere haber corrido infra/setup_github_oidc.sh una vez (manualmente, con
+# autorizacion explicita) y haber cargado estas variables del repo/entorno
+# (Settings > Secrets and variables > Actions > Variables, NO Secrets --
+# OIDC no necesita un secreto de larga duracion):
+#   AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID
+#   ACR_NAME, RESOURCE_GROUP_JOB, CONTAINERAPP_JOB_NAME
+#
+# El job "build-and-deploy" solo corre en push a main, y solo si "test" paso.
+# No se ejecuta nada de esto en este repositorio hasta que alguien haga push
+# a main con estas variables ya configuradas -- hasta entonces, "test" corre
+# en cada push/PR sin tocar Azure.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write  # requerido por azure/login con OIDC
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: pytest -q
+
+  build-and-deploy:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production  # opcional: crear este Environment en GitHub para requerir aprobacion manual antes de deployar
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC, sin secretos de larga duracion)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build y push de la imagen (build remoto en el ACR existente)
+        run: |
+          az acr build \
+            --registry "${{ vars.ACR_NAME }}" \
+            --image "etl-pmc:${{ github.sha }}" \
+            --image "etl-pmc:latest" \
+            .
+
+      - name: Actualizar la imagen del Container Apps Job
+        run: |
+          az containerapp job update \
+            --name "${{ vars.CONTAINERAPP_JOB_NAME }}" \
+            --resource-group "${{ vars.RESOURCE_GROUP_JOB }}" \
+            --image "${{ vars.ACR_NAME }}.azurecr.io/etl-pmc:${{ github.sha }}"
+
+      - name: Logout
+        if: always()
+        run: az logout

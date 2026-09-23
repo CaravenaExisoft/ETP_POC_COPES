@@ -85,6 +85,18 @@ La imagen no expone puertos ni corre un servidor: es un job batch finito, proces
 
 `infra/deploy_container_app_job.sh` tiene los comandos de Azure CLI de referencia (build+push a ACR, identidad administrada, permisos mínimos, creación del Container Apps Job con trigger manual). **No se ejecutó nada de esto contra una suscripción real** — son comandos a revisar y correr manualmente, con placeholders explícitos para suscripción/resource group/ACR/environment/identidad, conforme a lo pedido (no desplegar sin autorización). `docs/integracion_adf.md` describe cómo `PL_EJECUTAR_ETL_POC` debería invocar el Job y leer su resultado, y qué queda pendiente de validar contra la documentación oficial de Azure antes de un primer intento real.
 
+El ACR puede estar en un resource group (o subscription) distinto del Job: alcanza con que la identidad del Job tenga `AcrPull` sobre el *resource ID* del ACR — el scope es el recurso, no el resource group.
+
+## CI/CD (GitHub Actions)
+
+`.github/workflows/deploy.yml`: corre la suite de tests en cada push/PR; en push a `main` (si los tests pasan) hace build de la imagen contra el ACR existente (`az acr build`, build remoto) y actualiza la imagen del Container Apps Job. Autenticación contra Azure vía **OIDC/federated credential** (sin secretos de larga duración guardados en GitHub).
+
+Antes de que el deploy funcione hace falta, una sola vez:
+1. Correr `infra/setup_github_oidc.sh` (manualmente, con placeholders reemplazados) para crear la identidad y el federated credential scopeado a este repo/rama.
+2. Cargar como **Variables** (no Secrets) del repo en GitHub — Settings → Secrets and variables → Actions → Variables: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `ACR_NAME`, `RESOURCE_GROUP_JOB`, `CONTAINERAPP_JOB_NAME`.
+
+Hasta que esas variables no estén cargadas, el job de deploy del workflow simplemente va a fallar al loguearse — el job de tests sigue corriendo igual en cada push.
+
 ## Troubleshooting
 
 - **`ConfigurationError` al arrancar**: el manifiesto tiene un campo faltante, un placeholder sin reemplazar (`<...>`), un booleano como string, un ancho de código incorrecto, o una ruta de blob con `..`/absoluta. El mensaje de error nombra el campo exacto — no es necesario adivinar.
