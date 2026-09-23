@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "etl-pmc"
+version = "0.1.0"
+description = "Motor ETL Pago Mis Cuentas para Azure Container Apps Job (POC, equivalente parcial de DF_TRANSFORMAR_BANELCO_POC)"
+requires-python = ">=3.11"
+dependencies = [
+    "azure-storage-blob>=12.19,<13",
+    "azure-identity>=1.15,<2",
+    "lxml>=5,<6",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8,<9",
+    "pytest-cov>=5,<6",
+]
+# Solo para demo_ui/ (pagina local de demostracion). NUNCA se instala en la
+# imagen Docker del Job (el Dockerfile hace "pip install ." sin extras) --
+# el Job sigue siendo batch/CLI puro, esto es una herramienta aparte.
+demo = [
+    "flask>=3,<4",
+]
+
+[project.scripts]
+etl-pmc = "etl_pmc.cli:main"
+compare-adf = "etl_pmc.tools.compare_adf:main"
+generate-fixture = "etl_pmc.tools.generate_fixture:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"etl_pmc.config.layout_data" = ["*.json"]
+"etl_pmc.config.schema_sintetico" = ["*.xsd"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

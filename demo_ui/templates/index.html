@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>etl_pmc — demo local</title>
+<style>
+  :root{
+    color-scheme: light;
+    --page: #f9f9f7; --surface:#fcfcfb; --surface-2:#f3f2ee;
+    --ink:#0b0b0b; --ink-2:#52514e; --ink-muted:#898781;
+    --hair:#e1e0d9; --hair-strong:#c3c2b7;
+    --blue:#2a78d6; --blue-soft:#eaf1fb;
+    --violet:#4a3aa7; --violet-soft:#eeecfa;
+    --good:#0ca30c; --good-soft:#e6f6e6;
+    --warn:#b8790a; --warn-soft:#fdf1dd;
+    --bad:#d03b3b; --bad-soft:#fbeaea;
+    --shadow:0 1px 2px rgba(11,11,11,.04), 0 8px 24px rgba(11,11,11,.05);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      color-scheme: dark;
+      --page:#0d0d0d; --surface:#1a1a19; --surface-2:#212120;
+      --ink:#ffffff; --ink-2:#c3c2b7; --ink-muted:#898781;
+      --hair:#2c2c2a; --hair-strong:#383835;
+      --blue:#3987e5; --blue-soft:#16283f;
+      --violet:#9085e9; --violet-soft:#241f42;
+      --good:#0ca30c; --good-soft:#10280f;
+      --warn:#fab219; --warn-soft:#332506;
+      --bad:#e66767; --bad-soft:#3a1414;
+      --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--page); color:var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 32px 16px 64px;
+  }
+  .wrap{max-width:760px;margin-inline:auto;display:flex;flex-direction:column;gap:22px;}
+  header{display:flex;flex-direction:column;gap:8px;}
+  .eyebrow{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--blue);}
+  h1{font-size:26px;margin:0;font-weight:700;}
+  .lede{font-size:14px;color:var(--ink-2);line-height:1.55;max-width:62ch;margin:0;}
+  .lede b{color:var(--ink);}
+
+  .card{background:var(--surface);border:1px solid var(--hair);border-radius:14px;box-shadow:var(--shadow);padding:22px;}
+
+  form{display:flex;flex-direction:column;gap:16px;}
+  .field{display:flex;flex-direction:column;gap:6px;}
+  .field label{font-size:13px;font-weight:700;color:var(--ink);}
+  .field .hint{font-size:12px;color:var(--ink-muted);}
+  input[type=file]{
+    font-size:13px;color:var(--ink-2);
+    padding:10px;border:1px dashed var(--hair-strong);border-radius:10px;background:var(--surface-2);
+  }
+  .checks{display:flex;flex-direction:column;gap:10px;padding:14px 16px;background:var(--surface-2);border-radius:12px;border:1px solid var(--hair);}
+  .chk{display:flex;align-items:flex-start;gap:10px;font-size:13.5px;}
+  .chk input{margin-top:3px;}
+  .chk .t{display:flex;flex-direction:column;gap:2px;}
+  .chk .t b{font-weight:600;}
+  .chk .t span{font-size:12px;color:var(--ink-muted);}
+  .badge-inv{
+    display:inline-block;font-size:10px;font-weight:800;letter-spacing:.04em;
+    color:var(--blue);background:var(--blue-soft);border-radius:5px;padding:1px 6px;margin-left:6px;
+  }
+
+  button{
+    appearance:none;border:none;border-radius:10px;padding:13px 20px;
+    background:var(--blue);color:white;font-size:15px;font-weight:700;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+  }
+  button:disabled{opacity:.55;cursor:default;}
+  button:not(:disabled):hover{filter:brightness(1.06);}
+
+  .spinner{width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;animation:spin .7s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  #progreso{display:none;flex-direction:column;align-items:center;gap:10px;padding:28px 22px;text-align:center;}
+  #progreso .dot-spin{width:28px;height:28px;border-radius:50%;border:3px solid var(--hair-strong);border-top-color:var(--blue);animation:spin .8s linear infinite;}
+  #progreso .t{font-size:14px;color:var(--ink-2);}
+  #progreso .elapsed{font-variant-numeric:tabular-nums;font-weight:700;color:var(--ink);}
+
+  #error{display:none;padding:16px 18px;border-radius:12px;background:var(--bad-soft);border:1px solid color-mix(in srgb, var(--bad) 30%, transparent);}
+  #error p{margin:0;font-size:13.5px;color:var(--bad);}
+
+  #resultados{display:none;flex-direction:column;gap:18px;}
+
+  .estado-pill{
+    display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:800;
+    padding:5px 12px;border-radius:999px;letter-spacing:.02em;
+  }
+  .estado-pill.ok{background:var(--good-soft);color:var(--good);}
+  .estado-pill.warn{background:var(--warn-soft);color:var(--warn);}
+  .estado-pill.bad{background:var(--bad-soft);color:var(--bad);}
+
+  .stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+  @media (max-width:560px){.stat-grid{grid-template-columns:repeat(2,1fr);}}
+  .stat{background:var(--surface-2);border:1px solid var(--hair);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:3px;}
+  .stat .n{font-size:11px;color:var(--ink-muted);font-weight:700;letter-spacing:.03em;text-transform:uppercase;}
+  .stat .v{font-size:20px;font-weight:800;font-variant-numeric:tabular-nums;}
+
+  .phase-row{display:flex;flex-direction:column;gap:6px;}
+  .phase-row .lbl{display:flex;justify-content:space-between;font-size:12.5px;color:var(--ink-2);}
+  .phase-row .lbl b{color:var(--ink);font-variant-numeric:tabular-nums;}
+  .bar-track{height:10px;border-radius:5px;background:var(--surface-2);border:1px solid var(--hair);overflow:hidden;}
+  .bar-fill{height:100%;background:var(--blue);border-radius:5px;}
+
+  table.preview{width:100%;border-collapse:collapse;font-size:12px;}
+  table.preview th{text-align:left;padding:6px 8px;color:var(--ink-muted);font-weight:700;border-bottom:1px solid var(--hair);white-space:nowrap;}
+  table.preview td{padding:6px 8px;border-bottom:1px solid var(--hair);white-space:nowrap;font-variant-numeric:tabular-nums;}
+  .table-scroll{overflow-x:auto;border:1px solid var(--hair);border-radius:10px;}
+
+  .downloads{display:flex;flex-wrap:wrap;gap:10px;}
+  .dl{
+    display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;
+    padding:9px 14px;border-radius:9px;background:var(--surface-2);border:1px solid var(--hair);
+    color:var(--ink);text-decoration:none;
+  }
+  .dl:hover{border-color:var(--hair-strong);}
+
+  h2.section{font-size:14px;margin:0;color:var(--ink-2);font-weight:700;text-transform:uppercase;letter-spacing:.03em;}
+  footer p{font-size:11.5px;color:var(--ink-muted);text-align:center;line-height:1.6;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">etl_pmc &middot; demo local</div>
+    <h1>Correr el motor Pago Mis Cuentas</h1>
+    <p class="lede">
+      Sube el TXT de entrada, elegí los filtros y apretá <b>Ejecutar</b>. Corre localmente el mismo motor que usa la
+      CLI (<code>etl-pmc run</code>) — esta página <b>no es el Container Apps Job</b>, es una herramienta de demo aparte.
+    </p>
+  </header>
+
+  <div class="card">
+    <form id="form-ejecutar">
+      <div class="field">
+        <label for="archivo_txt">Archivo TXT de entrada (obligatorio)</label>
+        <input type="file" id="archivo_txt" name="archivo_txt" accept=".txt" required>
+        <span class="hint">Ancho fijo, cabecera + detalles + pie (ej. entrada_real_1000.txt).</span>
+      </div>
+      <div class="field">
+        <label for="archivo_csv">CSV de enriquecimiento (opcional)</label>
+        <input type="file" id="archivo_csv" name="archivo_csv" accept=".csv">
+        <span class="hint">Columnas CodEntidad, Descripcion, CodBanco, CodigoServicio. Si no subís uno, se usa el de ejemplo del repo (CodEntidad=324, dato real de GDC-1000).</span>
+      </div>
+
+      <div class="checks">
+        <label class="chk">
+          <input type="checkbox" name="aplicar_filtro_30_dias">
+          <span class="t"><b>Filtro 30 días</b><span>Excluye detalles con primer vencimiento a más de 30 días de la fecha de cabecera.</span></span>
+        </label>
+        <label class="chk">
+          <input type="checkbox" name="aplicar_max_dos_cliente">
+          <span class="t"><b>Máximo 2 recibos por cliente</b><span>Conserva solo los dos vencimientos más tempranos por ReferenciaCliente.</span></span>
+        </label>
+        <label class="chk">
+          <input type="checkbox" name="aplicar_filtro_antiguedad">
+          <span class="t"><b>Filtro antigüedad &gt;10 meses<span class="badge-inv">INVENTADO</span></b><span>Usa una posición de campo fabricada (no existe en ningún dato real) — casi seguro rechaza todo. Ver docs/matriz_equivalencia.md §9.1.</span></span>
+        </label>
+      </div>
+
+      <button type="submit" id="btn-ejecutar">
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M6 4l10 6-10 6V4z" fill="currentColor"/></svg>
+        Ejecutar
+      </button>
+    </form>
+  </div>
+
+  <div class="card" id="progreso">
+    <div class="dot-spin"></div>
+    <div class="t">Procesando<span id="progreso-puntos"></span></div>
+    <div class="elapsed" id="progreso-tiempo">0.0s</div>
+  </div>
+
+  <div class="card" id="error">
+    <p id="error-msg"></p>
+  </div>
+
+  <div class="card" id="resultados">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <span class="estado-pill" id="estado-pill"></span>
+      <span id="tiempo-total" style="font-size:12.5px;color:var(--ink-muted);"></span>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat"><div class="n">Leídos</div><div class="v" id="s-leida">—</div></div>
+      <div class="stat"><div class="n">Válidos</div><div class="v" id="s-valida">—</div></div>
+      <div class="stat"><div class="n">Emitidos</div><div class="v" id="s-emitida">—</div></div>
+      <div class="stat"><div class="n">Rechazados</div><div class="v" id="s-rechazada">—</div></div>
+      <div class="stat"><div class="n">Excluidos (negocio)</div><div class="v" id="s-excluida">—</div></div>
+      <div class="stat"><div class="n">Total salida</div><div class="v" id="s-total">—</div></div>
+    </div>
+
+    <div>
+      <h2 class="section" style="margin-bottom:10px;">Tiempos por etapa</h2>
+      <div id="fases" style="display:flex;flex-direction:column;gap:10px;"></div>
+    </div>
+
+    <div id="preview-wrap" style="display:none;">
+      <h2 class="section" style="margin-bottom:10px;">Muestra del archivo de salida (primeros detalles)</h2>
+      <div class="table-scroll"><table class="preview" id="tabla-preview"></table></div>
+    </div>
+
+    <div>
+      <h2 class="section" style="margin-bottom:10px;">Descargar</h2>
+      <div class="downloads" id="descargas"></div>
+    </div>
+  </div>
+
+  <footer>
+    <p>Herramienta de desarrollo/demo — no se despliega a Azure. El Container Apps Job real es <code>etl-pmc run --manifest ...</code>, batch puro.</p>
+  </footer>
+</div>
+
+<script>
+const form = document.getElementById('form-ejecutar');
+const btn = document.getElementById('btn-ejecutar');
+const progreso = document.getElementById('progreso');
+const progresoTiempo = document.getElementById('progreso-tiempo');
+const errorBox = document.getElementById('error');
+const errorMsg = document.getElementById('error-msg');
+const resultados = document.getElementById('resultados');
+
+let pollTimer = null;
+let puntosTimer = null;
+
+function fmt(n, dec=2){ return Number(n).toFixed(dec); }
+
+function nombreFase(k){
+  const nombres = {
+    enriquecimiento: 'Enriquecimiento',
+    lectura_y_validacion: 'Lectura y validación',
+    validacion_schema_sintetica: 'Schema sintético (simulado)',
+    reglas_y_formato: 'Reglas de negocio y formato',
+  };
+  return nombres[k] || k;
+}
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  btn.disabled = true;
+  resultados.style.display = 'none';
+  errorBox.style.display = 'none';
+  progreso.style.display = 'flex';
+
+  let dots = 0;
+  puntosTimer = setInterval(() => {
+    dots = (dots + 1) % 4;
+    document.getElementById('progreso-puntos').textContent = '.'.repeat(dots);
+  }, 400);
+
+  const fd = new FormData(form);
+  let jobId;
+  try {
+    const resp = await fetch('/ejecutar', { method: 'POST', body: fd });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Error desconocido al iniciar la corrida');
+    jobId = data.job_id;
+  } catch (err) {
+    mostrarError(err.message);
+    return;
+  }
+
+  pollTimer = setInterval(() => pollEstado(jobId), 400);
+});
+
+async function pollEstado(jobId){
+  const resp = await fetch('/estado/' + jobId);
+  const data = await resp.json();
+
+  if (data.elapsed_seconds != null) {
+    progresoTiempo.textContent = fmt(data.elapsed_seconds, 1) + 's';
+  }
+
+  if (data.estado === 'corriendo') return;
+
+  clearInterval(pollTimer);
+  clearInterval(puntosTimer);
+  progreso.style.display = 'none';
+  btn.disabled = false;
+
+  if (data.estado === 'error') {
+    mostrarError(data.error);
+    return;
+  }
+
+  mostrarResultado(jobId, data.resultado, data.preview, data.elapsed_seconds);
+}
+
+function mostrarError(msg){
+  clearInterval(pollTimer);
+  clearInterval(puntosTimer);
+  progreso.style.display = 'none';
+  btn.disabled = false;
+  errorMsg.textContent = msg;
+  errorBox.style.display = 'block';
+}
+
+function mostrarResultado(jobId, r, preview, segundosTotales){
+  const pill = document.getElementById('estado-pill');
+  pill.textContent = r.estado;
+  pill.className = 'estado-pill ' + (
+    r.estado === 'SUCCEEDED' ? 'ok' :
+    r.estado === 'SUCCEEDED_WITH_REJECTIONS' ? 'warn' :
+    r.estado === 'ALREADY_PROCESSED' ? 'ok' : 'bad'
+  );
+  document.getElementById('tiempo-total').textContent = 'Corrida completa en ' + fmt(segundosTotales, 2) + 's';
+
+  document.getElementById('s-leida').textContent = r.cantidad_leida.toLocaleString('es-AR');
+  document.getElementById('s-valida').textContent = r.cantidad_valida.toLocaleString('es-AR');
+  document.getElementById('s-emitida').textContent = r.cantidad_emitida.toLocaleString('es-AR');
+  document.getElementById('s-rechazada').textContent = r.cantidad_rechazada.toLocaleString('es-AR');
+  document.getElementById('s-excluida').textContent = r.cantidad_excluida_negocio.toLocaleString('es-AR');
+  document.getElementById('s-total').textContent = r.importe_total_salida != null ? ('$' + r.importe_total_salida) : '—';
+
+  const fases = document.getElementById('fases');
+  fases.innerHTML = '';
+  const duraciones = r.duraciones_segundos || {};
+  const maxDur = Math.max(...Object.values(duraciones), 0.001);
+  for (const [k, v] of Object.entries(duraciones)) {
+    const row = document.createElement('div');
+    row.className = 'phase-row';
+    row.innerHTML = `
+      <div class="lbl"><span>${nombreFase(k)}</span><b>${fmt(v, 3)}s</b></div>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.max(2, (v / maxDur) * 100)}%"></div></div>
+    `;
+    fases.appendChild(row);
+  }
+
+  const previewWrap = document.getElementById('preview-wrap');
+  const tabla = document.getElementById('tabla-preview');
+  if (preview && preview.length > 0) {
+    const columnas = [...new Set(preview.flatMap(row => Object.keys(row)))];
+    let thead = '<thead><tr>' + columnas.map(c => `<th>${c}</th>`).join('') + '</tr></thead>';
+    let tbody = '<tbody>' + preview.map(row =>
+      '<tr>' + columnas.map(c => `<td>${row[c] ?? ''}</td>`).join('') + '</tr>'
+    ).join('') + '</tbody>';
+    tabla.innerHTML = thead + tbody;
+    previewWrap.style.display = 'block';
+  } else {
+    previewWrap.style.display = 'none';
+  }
+
+  const descargas = document.getElementById('descargas');
+  descargas.innerHTML = '';
+  const items = [
+    ['salida', 'Archivo de salida', r.archivos_producidos && r.archivos_producidos.length > 0],
+    ['resultado', 'Resultado (JSON)', true],
+    ['errores', 'CSV de errores', !!r.ruta_errores],
+    ['manifiesto', 'Manifiesto usado', true],
+  ];
+  for (const [tipo, etiqueta, disponible] of items) {
+    if (!disponible) continue;
+    const a = document.createElement('a');
+    a.className = 'dl';
+    a.href = '/descargar/' + jobId + '/' + tipo;
+    a.textContent = '⬇ ' + etiqueta;
+    descargas.appendChild(a);
+  }
+
+  resultados.style.display = 'flex';
+}
+</script>
+</body>
+</html>

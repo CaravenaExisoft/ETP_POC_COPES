@@ -1,0 +1,36 @@
+{
+  "estado": "SUCCEEDED",
+  "run_id": "demo-cli-run-001",
+  "pipeline_run_id": "demo-pipeline-run-001",
+  "lote_id": "LOTE_REAL001",
+  "version_codigo": "0.1.0",
+  "profile": "poc_pmc",
+  "layout_version": 1,
+  "hash_entrada": "6c1c706f181775c3e1188109e08bc34f40aece5d875192bfeb2373f969078ed9",
+  "hash_enriquecimiento": "92a94830d4137a03a39033bbefcbd7367681cc58849f3d94332fd9c04439274e",
+  "archivos_consumidos": [
+    "inbound/sap/demo/lote_real001/entrada_real_1000.txt",
+    "enrichment/sap/demo/lote_real001/enrichment.csv"
+  ],
+  "archivos_producidos": [
+    "out/pmc/containerapp/demo/lote_real001/FAC0001.220926"
+  ],
+  "cantidad_leida": 1002,
+  "cantidad_valida": 1000,
+  "cantidad_rechazada": 0,
+  "cantidad_excluida_negocio": 0,
+  "cantidad_emitida": 1000,
+  "importe_total_declarado": "509483812.32",
+  "importe_total_calculado": "509483812.32",
+  "importe_total_salida": "509483812.32",
+  "control_cabecera_valido": true,
+  "control_archivo_valido": true,
+  "duraciones_segundos": {
+    "enriquecimiento": 0.0,
+    "lectura_y_validacion": 0.030999999959021807,
+    "reglas_y_formato": 0.03200000000651926
+  },
+  "warnings": [],
+  "ruta_errores": null,
+  "motivos_rechazo_globales": []
+}

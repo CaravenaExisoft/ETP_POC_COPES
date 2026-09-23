@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+build/
+dist/
+.tmp/
+demo_ui/runs/
+
+# Fixtures sinteticas de benchmark, puramente generadas (regenerables con
+# docs/generar_entrada_real_poc.py) -- 660k pesa 451MB, supera el limite de
+# 100MB de GitHub sin Git LFS; 100k (69MB) tampoco aporta nada versionado.
+docs/entrada_sintetica_100000.txt
+docs/entrada_sintetica_660000.txt

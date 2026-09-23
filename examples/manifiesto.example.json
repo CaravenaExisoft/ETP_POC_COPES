@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "run_id": "demo-cli-run-001",
+  "pipeline_run_id": "demo-pipeline-run-001",
+  "lote_id": "LOTE_REAL001",
+  "profile": "poc_pmc",
+  "storage_account_url": "https://storagelocal.invalid",
+  "input": {"container": "inbound", "blob": "sap/demo/lote_real001/entrada_real_1000.txt", "etag": null},
+  "enrichment": {"container": "enrichment", "blob": "sap/demo/lote_real001/enrichment.csv", "mode": "single_configuration"},
+  "output": {"container": "out", "prefix": "pmc/containerapp/demo/lote_real001", "filename": "FAC0001.220926"},
+  "audit": {"container": "audit", "prefix": "containerapp/demo/lote_real001"},
+  "errors": {"container": "error", "prefix": "containerapp/demo/lote_real001"},
+  "parameters": {
+    "CodBancoPMC": "001",
+    "CodigoServicioPMC": "0001",
+    "TipoRegistroCabPMC": "0",
+    "TipoRegistroDetPMC": "1",
+    "TipoRegistroPiePMC": "9",
+    "AplicarFiltro30Dias": false,
+    "AplicarMaxDosCliente": false,
+    "CuotaPMC": "01",
+    "FechaEjecucionUTC": "2026-09-22T12:00:00Z"
+  },
+  "format": {
+    "input_encoding": "utf-8",
+    "output_encoding": "utf-8",
+    "output_newline": "CRLF",
+    "output_bom": false,
+    "final_newline": true
+  }
+}

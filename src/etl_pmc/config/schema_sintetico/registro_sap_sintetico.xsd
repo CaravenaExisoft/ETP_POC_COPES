@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  SCHEMA INVENTADO A PEDIDO EXPLICITO DEL USUARIO. NO es el XSD productivo
+  real (el prompt lo deja fuera de alcance en la seccion 17: "XSD productivo
+  no entregado"; GDC-1000 seccion B lo menciona como validacion existente sin
+  adjuntar el schema). Este archivo existe unicamente para poder medir el
+  costo de un paso de "parseo a arbol + validacion contra schema por
+  registro" a escala, comparable al que probablemente hace IIB, y asi poder
+  evaluar si eso explica parte de la diferencia de tiempo frente al proceso
+  legado. No usar como evidencia de conformidad con ningun XSD real.
+
+  Los patrones reproducen las mismas restricciones que ya aplica
+  etl_pmc.parsing.conversions / etl_pmc.validation.detalle: es una
+  redundancia deliberada (como en muchos sistemas de integracion reales que
+  validan el mismo dato en mas de una capa), no una fuente de verdad nueva.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+
+  <xs:simpleType name="Fecha8">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[0-9]{8}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="Importe13">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[0-9]{10},[0-9]{2}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="Importe15">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[0-9]{12},[0-9]{2}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:element name="Cabecera">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="FechaCabecera" type="Fecha8"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="Detalle">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="ReferenciaCliente">
+          <xs:simpleType>
+            <xs:restriction base="xs:string"><xs:pattern value="[0-9]{8}"/></xs:restriction>
+          </xs:simpleType>
+        </xs:element>
+        <xs:element name="IdDeuda">
+          <xs:simpleType>
+            <xs:restriction base="xs:string"><xs:pattern value="[0-9]{9}"/></xs:restriction>
+          </xs:simpleType>
+        </xs:element>
+        <xs:element name="PrimerVencimiento" type="Fecha8"/>
+        <xs:element name="Moneda">
+          <xs:simpleType>
+            <xs:restriction base="xs:string"><xs:length value="3"/></xs:restriction>
+          </xs:simpleType>
+        </xs:element>
+        <xs:element name="ImportePrincipal" type="Importe13"/>
+        <xs:element name="NombreEntidad">
+          <xs:simpleType>
+            <xs:restriction base="xs:string"><xs:maxLength value="37"/></xs:restriction>
+          </xs:simpleType>
+        </xs:element>
+        <xs:element name="Concepto">
+          <xs:simpleType>
+            <xs:restriction base="xs:string"><xs:maxLength value="28"/></xs:restriction>
+          </xs:simpleType>
+        </xs:element>
+        <xs:element name="SegundoVencimiento" type="Fecha8"/>
+        <xs:element name="ImporteSegundoVencimiento" type="Importe13"/>
+        <xs:element name="TercerVencimiento" type="Fecha8"/>
+        <xs:element name="ImporteTercerVencimiento" type="Importe13"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="Pie">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="CantidadDeclarada">
+          <xs:simpleType>
+            <xs:restriction base="xs:string"><xs:pattern value="[0-9]{8}"/></xs:restriction>
+          </xs:simpleType>
+        </xs:element>
+        <xs:element name="ImporteTotalDeclarado" type="Importe15"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+</xs:schema>

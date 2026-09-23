@@ -1,0 +1,31 @@
+{
+  "profile": "poc_pmc",
+  "layout_version": 1,
+  "source": "Prompt_Container_Apps_ETL_Equivalente_ADF_Poc.md secciones 5-7 y 10; posiciones no documentadas por el prompt fueron verificadas empiricamente contra entrada_real_1000.txt (ver docs/matriz_equivalencia.md). No hay export ADF disponible: ninguna posicion de este archivo es CONFIRMADA_ADF. El campo estado=INVENTADO (fecha_emision_deuda_sintetica) no tiene ninguna base documental ni empirica: se eligio una posicion sin uso conocido a pedido explicito del usuario para poder simular el filtro de antiguedad de GDC-1000; casi seguro no matchea contra datos reales y el filtro que la usa esta apagado por defecto.",
+  "record_types": {
+    "cabecera": {"type_digit": "1", "length": 88},
+    "detalle": {"type_digit": "2", "length": 713},
+    "pie": {"type_digit": "3", "length": 24}
+  },
+  "cabecera_fields": [
+    {"name": "fecha_cabecera", "start": 2, "length": 8, "kind": "date_yyyymmdd", "estado": "PROPUESTA_GUIA"}
+  ],
+  "detalle_fields": [
+    {"name": "referencia_cliente", "start": 58, "length": 8, "kind": "text", "estado": "SUPUESTO_POC"},
+    {"name": "id_deuda", "start": 103, "length": 9, "kind": "text", "estado": "SUPUESTO_POC"},
+    {"name": "primer_vencimiento", "start": 144, "length": 8, "kind": "date_yyyymmdd", "estado": "PROPUESTA_GUIA"},
+    {"name": "fecha_emision_deuda_sintetica", "start": 152, "length": 8, "kind": "date_yyyymmdd", "estado": "INVENTADO"},
+    {"name": "moneda", "start": 168, "length": 3, "kind": "text", "estado": "SUPUESTO_POC"},
+    {"name": "importe_principal", "start": 173, "length": 13, "kind": "amount_comma2", "estado": "SUPUESTO_POC"},
+    {"name": "nombre_entidad", "start": 323, "length": 37, "kind": "text_trim", "estado": "SUPUESTO_POC"},
+    {"name": "concepto", "start": 434, "length": 28, "kind": "text_trim", "estado": "SUPUESTO_POC"},
+    {"name": "segundo_vencimiento", "start": 666, "length": 8, "kind": "date_yyyymmdd", "estado": "PROPUESTA_GUIA"},
+    {"name": "importe_segundo_vencimiento", "start": 674, "length": 13, "kind": "amount_comma2", "estado": "PROPUESTA_GUIA"},
+    {"name": "tercer_vencimiento", "start": 687, "length": 8, "kind": "date_yyyymmdd", "estado": "PROPUESTA_GUIA"},
+    {"name": "importe_tercer_vencimiento", "start": 695, "length": 13, "kind": "amount_comma2", "estado": "PROPUESTA_GUIA"}
+  ],
+  "pie_fields": [
+    {"name": "cantidad_declarada", "start": 2, "length": 8, "kind": "integer", "estado": "SUPUESTO_POC"},
+    {"name": "importe_total_declarado", "start": 10, "length": 15, "kind": "amount_comma2", "estado": "SUPUESTO_POC"}
+  ]
+}
