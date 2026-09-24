@@ -15,6 +15,10 @@
 
 set -euo pipefail
 
+# Ver infra/deploy_container_app_job.sh: necesario en Git Bash/MSYS en
+# Windows, donde "/subscriptions/..." se malinterpreta como ruta de Windows.
+export MSYS_NO_PATHCONV=1
+
 # Valores reales de la subscription "Exisoft" (mismos que
 # infra/deploy_container_app_job.sh). CONTAINERAPP_JOB_RESOURCE_ID solo se
 # puede completar DESPUES de correr ese script (el Job todavia no existe).

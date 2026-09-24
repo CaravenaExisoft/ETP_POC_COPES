@@ -12,6 +12,13 @@
 
 set -euo pipefail
 
+# Si esto corre en Git Bash / MSYS en Windows: MSYS convierte automaticamente
+# cualquier argumento que empiece con "/" (como los resource ID de Azure,
+# "/subscriptions/...") en una ruta de Windows, rompiendo --scope en los
+# role assignment. Desactivarlo es necesario en ese entorno; no tiene efecto
+# en bash real (Linux/WSL/macOS).
+export MSYS_NO_PATHCONV=1
+
 # Valores reales de la subscription "Exisoft", confirmados por consulta de
 # solo lectura (az acr show / az containerapp env list / az storage account
 # list) el 2026-09-23. El ACR y el Environment ya existen en RG-Proyecto-ARGO;
