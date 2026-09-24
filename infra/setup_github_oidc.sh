@@ -15,18 +15,20 @@
 
 set -euo pipefail
 
-SUBSCRIPTION_ID="<subscription-id>"
-RESOURCE_GROUP_IDENTITY="<resource-group-donde-vive-o-vivira-la-identidad>"
-LOCATION="<location>"
+# Valores reales de la subscription "Exisoft" (mismos que
+# infra/deploy_container_app_job.sh). CONTAINERAPP_JOB_RESOURCE_ID solo se
+# puede completar DESPUES de correr ese script (el Job todavia no existe).
+SUBSCRIPTION_ID="c19f6e07-a376-4cc2-9496-6aa9e4129caf"
+RESOURCE_GROUP_IDENTITY="RG-Proyecto-ARGO"
+LOCATION="westus3"
 UAMI_NAME="uami-github-actions-etl-pmc"
 
 REPO="CaravenaExisoft/ETP_POC_COPES"
 RAMA="main"
 
-# Recursos existentes a los que esta identidad va a necesitar acceso (los
-# mismos de infra/deploy_container_app_job.sh; completar con los reales).
-ACR_RESOURCE_ID="<resource-id-del-acr-existente>"                 # az acr show --name <acr> --query id -o tsv
-CONTAINERAPP_JOB_RESOURCE_ID="<resource-id-del-container-apps-job>"  # az containerapp job show --name <job> --resource-group <rg> --query id -o tsv
+# Recursos existentes a los que esta identidad va a necesitar acceso.
+ACR_RESOURCE_ID="/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/RG-Proyecto-ARGO/providers/Microsoft.ContainerRegistry/registries/acrargoexi"
+CONTAINERAPP_JOB_RESOURCE_ID="/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/RG-Proyecto-ARGO/providers/Microsoft.App/jobs/job-etl-pmc-poc"  # existe recien despues de correr deploy_container_app_job.sh
 
 az account set --subscription "${SUBSCRIPTION_ID}"
 

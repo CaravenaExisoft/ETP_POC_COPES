@@ -12,16 +12,24 @@
 
 set -euo pipefail
 
-SUBSCRIPTION_ID="<subscription-id>"
-RESOURCE_GROUP="<resource-group>"
-LOCATION="<location>"                      # ej. eastus2, brazilsouth
-CONTAINERAPPS_ENVIRONMENT="<nombre-environment-existente>"
-ACR_NAME="<nombre-acr-existente>"
+# Valores reales de la subscription "Exisoft", confirmados por consulta de
+# solo lectura (az acr show / az containerapp env list / az storage account
+# list) el 2026-09-23. El ACR y el Environment ya existen en RG-Proyecto-ARGO;
+# el storage account real de esta POC (con los containers inbound/enrichment/
+# out/audit/error/stage ya creados) esta en RG-COPES-ETL-POC, resource group
+# distinto -- por eso STORAGE_ACCOUNT_ID abajo apunta a otro RG que el resto:
+# los resource groups no son una frontera de permisos, el scope del role
+# assignment es el resource ID puntual.
+SUBSCRIPTION_ID="c19f6e07-a376-4cc2-9496-6aa9e4129caf"
+RESOURCE_GROUP="RG-Proyecto-ARGO"
+LOCATION="westus3"
+CONTAINERAPPS_ENVIRONMENT="cae-argo-dev"
+ACR_NAME="acrargoexi"
 IMAGE_NAME="etl-pmc"
 IMAGE_TAG="0.1.0"
 JOB_NAME="job-etl-pmc-poc"
-USER_ASSIGNED_IDENTITY="<identidad-administrada-existente-o-a-crear>"
-STORAGE_ACCOUNT_URL="https://<storage>.blob.core.windows.net"
+USER_ASSIGNED_IDENTITY="uami-job-etl-pmc"
+STORAGE_ACCOUNT_URL="https://copesetlpoc.blob.core.windows.net"
 
 az account set --subscription "${SUBSCRIPTION_ID}"
 
@@ -57,7 +65,7 @@ IDENTITY_PRINCIPAL_ID=$(az identity show \
 #    enrichment y escribir out/audit/error. Si se prefiere separar lectura de
 #    escritura por contenedor, usar asignaciones a nivel de contenedor
 #    (--scope apuntando al contenedor especifico) en vez de a nivel de cuenta.
-STORAGE_ACCOUNT_ID="<resource-id-del-storage-account-existente>"
+STORAGE_ACCOUNT_ID="/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/RG-COPES-ETL-POC/providers/Microsoft.Storage/storageAccounts/copesetlpoc"
 az role assignment create \
   --assignee-object-id "${IDENTITY_PRINCIPAL_ID}" \
   --assignee-principal-type ServicePrincipal \
