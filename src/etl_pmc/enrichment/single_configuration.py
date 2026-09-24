@@ -1,13 +1,40 @@
-"""Modo 'single_configuration' (poc_pmc, NO_VERIFICADA -- prompt seccion 8).
+"""Modo 'single_configuration' (poc_pmc -- prompt seccion 8).
 
 Consume como maximo una fila de configuracion del CSV de enriquecimiento.
-Columnas alineadas al esquema real de intdb.FixedValues (la "Tabla
-Intermedia" que describe GDC-1000): CodEntidad, Descripcion, CodBanco,
-CodigoServicio -- no a los nombres CodEntidad/DescripcionEntidad/
-CodBancoConfig/CodigoServicioConfig que el prompt sugeria y que no coinciden
-con la tabla real. No hace fallback silencioso ante archivo faltante, CSV
+Columnas alineadas al esquema real de intdb.FixedValues/vw_EnrichmentPoc
+(GDC-1000 + confirmado por el usuario): CodEntidad, Descripcion, CodBanco,
+CodigoServicio. No hace fallback silencioso ante archivo faltante, CSV
 vacio, columna ausente, nulo, cadena vacia o multiples filas: cada caso es
 un EnrichmentError distinto.
+
+Limpieza de CodBanco/CodigoServicio: CONFIRMADA_ADF. El usuario compartio la
+query real usada para extraer esta configuracion desde SQL:
+
+    SELECT TOP (1)
+           CAST(CodEntidad AS varchar(10)) AS CodEntidad,
+           LTRIM(RTRIM(DescripcionEntidad)) AS DescripcionEntidad,
+           RIGHT('000' + REPLACE(REPLACE(LTRIM(RTRIM(CodBanco)), '''', ''), 'B', ''), 3)
+               AS CodBancoConfig,
+           RIGHT('0000' + REPLACE(REPLACE(LTRIM(RTRIM(CodigoServicio)), '''', ''), 'S', ''), 4)
+               AS CodigoServicioConfig
+    FROM intdb.vw_EnrichmentPoc
+    WHERE LoteId = 'LOTE001'
+    ORDER BY CodEntidad;
+
+Es decir: en el dato crudo, CodBanco/CodigoServicio vienen con un prefijo de
+letra ('B001', 'S0001', confirmado contra 100 filas de muestra de
+vw_EnrichmentPoc) y posibles comillas simples embebidas, y la propia query
+de SQL ya los limpia (saca comillas, saca la letra, rellena con ceros a
+3/4 posiciones) antes de que el extracto llegue a Storage. _limpiar_codigo
+replica exactamente esa transformacion -- es un no-op si el CSV ya llega
+limpio (ej. "001"), asi que no rompe los fixtures existentes.
+
+Tambien confirma una divergencia ya documentada en
+docs/matriz_equivalencia.md seccion 8.1: el "TOP (1) ... ORDER BY CodEntidad"
+de la query real selecciona una fila sin controlar cardinalidad -- si hubiera
+mas de una fila para el mismo LoteId, ADF tomaria una en silencio. Este
+motor, a proposito, NO replica eso: sigue fallando con MULTIPLES_FILAS
+(prompt seccion 8: "no copies un TOP (1) dentro del contenedor").
 """
 
 from __future__ import annotations
@@ -17,6 +44,13 @@ from dataclasses import dataclass
 from etl_pmc.errors import EnrichmentError
 
 COLUMNAS_REQUERIDAS = ("CodEntidad", "Descripcion", "CodBanco", "CodigoServicio")
+
+
+def _limpiar_codigo(valor: str, letra: str, ancho: int) -> str:
+    """Replica RIGHT('0'*ancho + REPLACE(REPLACE(valor, '''', ''), letra, ''), ancho)."""
+    sin_comillas = valor.replace("'", "")
+    sin_letra = sin_comillas.replace(letra, "")
+    return ("0" * ancho + sin_letra)[-ancho:]
 
 
 @dataclass(frozen=True)
@@ -62,8 +96,10 @@ def cargar_single_configuration(filas: list[dict[str, str]] | None) -> Configura
     if descripcion == "":
         raise EnrichmentError("VALOR_VACIO", "Descripcion es una cadena vacia")
 
-    cod_banco = _trim(fila.get("CodBanco")) or None
-    codigo_servicio = _trim(fila.get("CodigoServicio")) or None
+    cod_banco_raw = _trim(fila.get("CodBanco")) or None
+    codigo_servicio_raw = _trim(fila.get("CodigoServicio")) or None
+    cod_banco = _limpiar_codigo(cod_banco_raw, "B", 3) if cod_banco_raw is not None else None
+    codigo_servicio = _limpiar_codigo(codigo_servicio_raw, "S", 4) if codigo_servicio_raw is not None else None
 
     return ConfiguracionEnriquecimiento(
         cod_entidad=cod_entidad,

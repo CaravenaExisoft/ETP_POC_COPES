@@ -9,10 +9,10 @@
 ## 1. Resumen ejecutivo
 
 - **Ambas opciones procesaron con éxito un lote de 660.000 detalles** (`Succeeded` en ADF; `SUCCEEDED` en el motor), sin filas de error reportadas en ninguna de las dos. Esto confirma que **ambas rutas de procesamiento pueden completar el volumen de evaluación previsto**, no que produzcan el mismo resultado byte a byte (no se comparó la salida de ambas con `compare-adf`; no hay export de ADF disponible para esa comparación — ver §4 y §7).
-- **Tiempos observados no son directamente comparables todavía**: el dato de ADF (`319 s` de Data Flow, corrida en Azure) y el dato del motor (`62,07 s`) provienen de **entornos de medición distintos** (Azure real vs. una máquina de desarrollo local, un solo proceso) **y de configuraciones distintas** (ADF usa lo que el responsable de la prueba describe como "configuración global"; la corrida citada del motor usa el modo `record_join` con 250.000 filas de enriquecimiento **más una validación de schema XSD inventada** para fines de medición, no un requisito productivo). Los cocientes descriptivos que resultan de estos números (**≈3,01× y ≈5,14×**, ver §3) son comparaciones entre mediciones distintas, **no una aceleración certificada ni un ahorro de costo**.
-- **La identidad del archivo de entrada (mismo lote de 660.000 detalles en ambas pruebas) fue confirmada por el responsable de la prueba**, pero **no está verificada criptográficamente entre ambos entornos**: se dispone del SHA-256 del archivo usado en las corridas del motor; no se dispone de un hash equivalente del lado de ADF (§2, §9).
-- **Quedan sin resolver, y se listan como pendientes priorizados (§7)**: XSD productivo (no existe; se usó uno inventado para medir costo), campo de antigüedad confiable (no existe; se usó una posición inventada), ambigüedad del layout de pie productivo (346 vs. 348 bytes), confirmación de si los flags de 30 días / máximo dos recibos estaban activos en la corrida de ADF medida, y evidencia de comportamiento negativo/de error del lado de ADF (las tres corridas de ADF disponibles terminaron en `Succeeded`).
-- **Recomendación** (condicionada a la evidencia disponible, ver §8): continuar la POC recolectando una corrida controlada y comparable (misma configuración de enriquecimiento, mismos flags, ambas en su entorno real de destino) antes de sacar conclusiones de performance o de equivalencia funcional.
+- **Identidad de archivo y configuración de negocio, ya alineadas**: el responsable de la prueba confirmó que subió al blob de ADF el mismo archivo local `entrada_sintetica_660000.txt` usado en las corridas del motor (SHA-256 `9863c2f2...`, sin transformación intermedia), y confirmó que la corrida de ADF medida (`RunId f6100c48...`) tenía `AplicarFiltro30Dias`/`AplicarMaxDosCliente` **ambos apagados**. Con eso se ejecutó una corrida adicional del motor, alineada en modo de enriquecimiento (`single_configuration`, con los valores reales de `vw_EnrichmentPoc` — ver §3.2bis), mismos flags, y **sin** la validación de schema inventada.
+- **Aun con la corrida alineada, los tiempos siguen sin ser comparables de forma confiable**: la corrida alineada del motor dio **45,07 s**, casi la mitad de una corrida anterior con la **misma configuración nominal** (91,20 s, §3.2). La diferencia es compatible con caché de disco del archivo de 452 MB (leído muchas veces en esta sesión de trabajo local), no con una mejora real del motor — es evidencia de que **una medición local aislada, aunque esté bien alineada en configuración, no alcanza como benchmark**; hace falta una batería de repeticiones y, eventualmente, la corrida dentro de Azure Container Apps real (§7). Los cocientes que resultan de cualquiera de estas corridas (ver §3.3) son **descriptivos, no una aceleración certificada ni un ahorro de costo**.
+- **Quedan sin resolver, y se listan como pendientes priorizados (§7)**: XSD productivo (no existe; se usó uno inventado para medir costo), campo de antigüedad confiable (no existe; se usó una posición inventada), ambigüedad del layout de pie productivo (346 vs. 348 bytes), y evidencia de comportamiento negativo/de error/de polling del lado de ADF (las tres corridas de ADF disponibles terminaron en `Succeeded`).
+- **Recomendación** (condicionada a la evidencia disponible, ver §8): antes de sacar conclusiones de performance, correr una batería de repeticiones bajo la misma configuración (ya alineada) y, del lado del motor, dentro de Azure Container Apps real, no localmente.
 
 ---
 
@@ -23,11 +23,13 @@
 | Código y tests del motor `etl_pmc` | **Confirmado** | Repositorio `ETP_POC_COPES`, 153 tests automatizados (`pytest -q`), sin necesidad de Azure |
 | Corridas del motor contra 660.000 detalles (4 configuraciones) | **Reportado** | Ejecutadas y observadas en esta sesión de trabajo; ver §3 |
 | SHA-256 del archivo de 660.000 usado por el motor | **Confirmado** | `9863c2f2b0aa1633f7be2eb8b6e85c7710a7ddbe58d1f91cfab50a30d97636f5` (constante en las 4 corridas del motor) |
-| SHA-256 del archivo de 660.000 usado por ADF | **Pendiente** | No provisto; la identidad de archivo entre entornos descansa en la confirmación verbal del responsable, no en un hash comparado |
+| SHA-256 del archivo de 660.000 usado por ADF | **Confirmado (por procedencia directa)** | El responsable subió al blob el mismo archivo local `entrada_sintetica_660000.txt` (SHA-256 `9863c2f2...`) sin transformación intermedia; no es un hash recalculado independientemente del lado de Azure, pero la procedencia es directa |
 | Corridas de `PL_EJECUTAR_ETL_POC_REAL` (Azure Monitor) | **Reportado** | 3 corridas, capturas de pantalla del usuario, 2026-09-23; ver §3 |
 | Detalle de actividad `DF_GENERAR_BANELCO_copy1` | **Reportado** | Solo para 1 de las 3 corridas (la de 369 s); las otras 2 sin desglose de actividad |
 | Vínculo de las otras 2 corridas de ADF con el archivo de 660.000 | **Pendiente** | No hay `FilasSalida` ni desglose de actividad que lo confirme para esas 2 corridas |
-| Flags `AplicarFiltro30Dias` / `AplicarMaxDosCliente` en la corrida de ADF medida | **Pendiente** | No informado si estaban activos o no |
+| Flags `AplicarFiltro30Dias` / `AplicarMaxDosCliente` en la corrida de ADF medida (`f6100c48...`) | **Confirmado** | Ambos apagados, según el responsable de la prueba |
+| Modo de enriquecimiento real de ADF | **Confirmado** | Query real provista por el usuario: `SELECT TOP (1) ... FROM intdb.vw_EnrichmentPoc WHERE LoteId = 'LOTE001' ORDER BY CodEntidad` — equivalente a `single_configuration`, **no** a `record_join`. Ver `docs/SQLQuery7.csv` (100 filas de muestra de la vista) |
+| Corrida del motor alineada a la configuración real de ADF (`single_configuration`, mismos flags, sin schema) | **Reportado** | Ejecutada en esta sesión tras confirmar los dos puntos anteriores; ver §3.2bis |
 | XSD productivo | **Pendiente / no existe** | Se usó un schema **inventado** solo para medir costo de un paso de validación (`etl_pmc/config/schema_sintetico/registro_sap_sintetico.xsd`) |
 | Campo de antigüedad confiable (>10 meses) | **Pendiente / no existe** | Se usó una posición de campo **inventada** (`fecha_emision_deuda_sintetica`, detalle, posición 152) para poder simular el filtro; ver `docs/matriz_equivalencia.md` §9.1 |
 | Layout de pie productivo | **Pendiente / ambiguo** | El documento fuente (GDC-1000) es internamente inconsistente entre 346 y 348 bytes; el perfil `poc_pmc` usa 280 bytes, sin resolver esa ambigüedad |
@@ -98,14 +100,42 @@ Estado de las 4 corridas: `SUCCEEDED`, 660.000 detalles emitidos, 0 rechazados, 
 
 Mediana / mínimo / máximo del total de proceso (n=4): ordenados 56,97 / 62,07 / 86,17 / 91,20 → **mediana 74,12 s**, **mínimo 56,97 s**, **máximo 91,20 s**. **Importante**: estas 4 corridas **no son repeticiones de la misma configuración** (difieren en modo de enriquecimiento y en si la validación de schema estaba encendida) — esta mediana describe el **rango observado bajo variantes de configuración**, no "la" performance del motor bajo una condición fija. Una batería de repeticiones bajo una única configuración fija queda pendiente (§7).
 
-### 3.3 Cocientes descriptivos (usando la corrida D del motor, la única con desglose citado en este reporte)
+### 3.2bis Corrida alineada a la configuración real de ADF
+
+Tras confirmar (con el responsable de la prueba) que la corrida de ADF de 319 s/369 s tenía ambos flags de negocio apagados y usaba enriquecimiento por **configuración global** (query real, ver §2 y §4) — no `record_join` — se ejecutó una corrida adicional del motor replicando esa configuración exacta:
+
+| Parámetro | Valor |
+|---|---|
+| Archivo de entrada | `entrada_sintetica_660000.txt`, SHA-256 `9863c2f2...` (mismo que ADF, ver §2) |
+| Modo de enriquecimiento | `single_configuration` |
+| Valores de enriquecimiento | `CodEntidad=1`, `Descripcion="POC Entidad 001"`, `CodBanco=001`, `CodigoServicio=0001` — de `docs/SQLQuery7.csv` (muestra real de `vw_EnrichmentPoc`, tras la limpieza que hace la query real: `B001`→`001`, `S0001`→`0001`) |
+| `AplicarFiltro30Dias` / `AplicarMaxDosCliente` | Apagados / Apagados (igual que la corrida de ADF) |
+| Validación de schema sintético | Apagada (no es parte del proceso real de ADF) |
+
+| Fase | Duración (s) |
+|---|---:|
+| Enriquecimiento | 0,00 |
+| Lectura y validación | 21,80 |
+| Reglas de negocio y formato | 22,13 |
+| **Suma de fases** | **43,92** |
+| **Total de proceso reportado** | **45,07** |
+
+Resultado: `SUCCEEDED`, 660.000 emitidos, 0 rechazados/excluidos, totales de control coincidentes.
+
+> **Hallazgo relevante**: esta corrida (configuración E) dio **45,07 s**, frente a los **91,20 s** de la corrida A (§3.2) — misma configuración nominal (`single_configuration`, sin schema, sin filtros), corridas en la misma máquina en distintos momentos de esta sesión de trabajo. La explicación más probable es **caché de disco/sistema operativo** del archivo de 452 MB, leído reiteradamente a lo largo de la sesión — **no una mejora real del motor**. Esto es evidencia directa de que **una sola medición local, aunque esté bien alineada en configuración, no es un benchmark confiable**: la variación (2×) entre dos corridas de la misma configuración es del mismo orden que las diferencias que se buscan medir entre ADF y el motor. Ver pendiente prioritario en §7.
+
+### 3.3 Cocientes descriptivos
 
 | Comparación | Cálculo | Resultado |
 |---|---|---:|
-| Data Flow total vs. motor (config. D) | 319 s ÷ 62,07 s | **≈5,14×** |
+| Data Flow total vs. motor (config. E, alineada) | 319 s ÷ 45,07 s | **≈7,08×** |
+| Data Flow sin arranque vs. motor (config. E, alineada) | 187,076 s ÷ 45,07 s | **≈4,15×** |
+| Data Flow total vs. motor (config. A, misma configuración, otra corrida) | 319 s ÷ 91,20 s | **≈3,50×** |
+| Data Flow sin arranque vs. motor (config. A) | 187,076 s ÷ 91,20 s | **≈2,05×** |
+| Data Flow total vs. motor (config. D, la citada originalmente, con `record_join`+schema) | 319 s ÷ 62,07 s | **≈5,14×** |
 | Data Flow sin arranque vs. motor (config. D) | 187,076 s ÷ 62,07 s | **≈3,01×** |
 
-**Estas cifras son descriptivas, no certificadas.** Comparan un runtime medido *dentro de Azure* (ADF) contra un runtime medido *localmente en una máquina de desarrollo* (motor), bajo configuraciones de enriquecimiento no equivalentes ("configuración global" en ADF, según el responsable de la prueba, vs. `record_join` de 250.000 filas + validación de schema inventada en el motor). No implican una aceleración certificada del motor sobre ADF ni un ahorro de costo — para eso hace falta una corrida controlada de ambas opciones bajo la misma configuración funcional y, del lado del motor, dentro del entorno real de Azure Container Apps (no local).
+**Ninguna de estas cifras es una aceleración certificada ni implica un ahorro de costo.** Las dos primeras filas (config. E) son las que usan la configuración *más alineada* a la corrida real de ADF (mismo archivo, mismo modo de enriquecimiento, mismos flags); aun así, comparan un runtime medido *dentro de Azure* (ADF) contra un runtime medido *localmente en una máquina de desarrollo, un solo proceso* (motor) — y el hallazgo de §3.2bis muestra que el propio motor, en esta máquina, varía ~2× entre corridas de la misma configuración. Las filas de config. A y D quedan como referencia de esa variabilidad, no como alternativas a promediar entre sí. Ningún cociente de esta tabla debe usarse para dimensionar infraestructura, costo, ni SLA.
 
 ---
 
@@ -125,7 +155,9 @@ El detalle completo, campo por campo, está en `docs/matriz_equivalencia.md`. Re
 | Control de formato tipo XSD | **Simulado, no productivo** | Schema inventado; ver §2 y `docs/matriz_equivalencia.md` §8.1 |
 | TRIM antes de mapear valores de la Tabla Intermedia | **Implementado** | `enrichment/single_configuration.py`, verificado con tests unitarios |
 | Normalización de vocales acentuadas en mensajes | **Implementado** | Requisito explícito de GDC-1000 §C; verificado con tests unitarios |
-| Flags 30 días / máximo 2 recibos (motor) | **Implementados, apagados por defecto** | Ambos verificados con tests unitarios y con corridas reales contra `entrada_real_1000.txt` (ver §5); estado de estos flags en la corrida de ADF medida en este reporte: **pendiente** |
+| Limpieza de `CodBanco`/`CodigoServicio` (prefijo de letra + comillas embebidas, relleno con ceros) | **Confirmado y replicado** | Query real provista por el usuario (`RIGHT('000'+REPLACE(REPLACE(...,'''',''),'B',''),3)`, análogo para `CodigoServicio` con `'S'`/4 dígitos); implementado en `enrichment/single_configuration.py`, verificado contra las 100 filas de muestra de `docs/SQLQuery7.csv` |
+| Cardinalidad del enriquecimiento por configuración (`TOP (1) ... ORDER BY CodEntidad`) | **Divergencia confirmada, mantenida a propósito** | La query real de ADF no controla cardinalidad: ante múltiples filas para el mismo `LoteId`, tomaría una en silencio. El motor, en cambio, **falla explícitamente** (`MULTIPLES_FILAS`) ante más de una fila — decisión deliberada, no un comportamiento a igualar (prompt: "no copies un `TOP (1)` dentro del contenedor") |
+| Flags 30 días / máximo 2 recibos (motor) | **Implementados y verificados contra el estado real de la corrida de ADF** | Ambos verificados con tests unitarios y con corridas reales contra `entrada_real_1000.txt` (ver §5); en la corrida de ADF medida en este reporte (`f6100c48...`) estaban **ambos apagados**, confirmado por el responsable — la corrida alineada del motor (§3.2bis) usó la misma combinación |
 
 **No se afirma equivalencia entre ADF y el motor por el solo hecho de que ambos terminen en estado exitoso** (`Succeeded` / `SUCCEEDED`): no hay comparación de la salida byte a byte (`compare-adf`) contra una salida real de ADF del mismo lote, porque esa salida no está disponible para este reporte.
 
@@ -153,16 +185,16 @@ El detalle completo, campo por campo, está en `docs/matriz_equivalencia.md`. Re
 
 ## 7. Pendientes priorizados
 
-1. **Obtener un export confiable de ADF** (Data Flow completo, con los sinks de salida `DS_SALIDA_PMC_V2`/`DS_ERRORES_PMC_V2` que se están incorporando) para poder promover reglas de `SUPUESTO_POC`/`PROPUESTA_GUIA` a `CONFIRMADA_ADF` en la matriz de equivalencia.
-2. **Correr `compare-adf`** contra una salida real de ADF del mismo lote y la salida del motor, para una comparación byte a byte — hoy no hay salida real de ADF disponible para esto.
-3. **Confirmar si los flags de 30 días / máximo 2 recibos estaban activos** en la corrida de ADF de 369 s/319 s citada en este reporte.
-4. **Reconciliar la discrepancia entre la suma de fases (70,09 s) y el total reportado (62,07 s)** de la corrida D del motor (§3.2) — no resuelta en esta sesión.
-5. **Ejecutar el motor dentro de Azure Container Apps real** (no local) para que una comparación de tiempos contra ADF sea metodológicamente válida.
-6. **Correr una batería de repeticiones bajo una configuración fija** (misma cantidad de filas de enriquecimiento, mismo estado de schema/filtros) en ambos entornos, para tener una mediana/mínimo/máximo comparable entre sí, no solo dentro de cada entorno.
-7. **Resolver el bloqueo de permisos RBAC** (condición ABAC sobre la cuenta `caravena@exisoft.com.ar`) que impide hoy crear el Container Apps Job real y completar el pipeline de CI/CD.
-8. **Definir el campo real de antigüedad de deuda** (o confirmar que la regla de 10 meses no aplica a esta POC) y, si corresponde, el XSD productivo real — ambos siguen simulados con datos inventados.
-9. **Resolver la ambigüedad del layout de pie productivo** (346 vs. 348 bytes) contra una fuente autorizada, o confirmar formalmente que queda fuera de alcance de esta POC.
-10. **Obtener evidencia de rechazo/error del lado de ADF** (hoy solo hay corridas exitosas) y de su comportamiento de polling/reprocesamiento.
+1. **Correr una batería de repeticiones bajo la configuración ya alineada** (§3.2bis), varias veces seguidas, para separar variación real de ruido de caché de disco/SO — la propia sesión mostró 2× de diferencia entre dos corridas locales con la misma configuración nominal (§1, §3.2bis).
+2. **Ejecutar el motor dentro de Azure Container Apps real** (no local) para que una comparación de tiempos contra ADF sea metodológicamente válida — el entorno de medición sigue siendo el principal factor no controlado.
+3. **Obtener un export confiable de ADF** (Data Flow completo, con los sinks de salida `DS_SALIDA_PMC_V2`/`DS_ERRORES_PMC_V2` que se están incorporando) para poder promover reglas de `SUPUESTO_POC`/`PROPUESTA_GUIA` a `CONFIRMADA_ADF` en la matriz de equivalencia.
+4. **Correr `compare-adf`** contra una salida real de ADF del mismo lote y la salida del motor, para una comparación byte a byte — hoy no hay salida real de ADF disponible para esto.
+5. **Reconciliar la discrepancia entre la suma de fases (70,09 s) y el total reportado (62,07 s)** de la corrida D del motor (§3.2) — no resuelta en esta sesión.
+6. **Resolver el bloqueo de permisos RBAC** (condición ABAC sobre la cuenta `caravena@exisoft.com.ar`) que impide hoy crear el Container Apps Job real y completar el pipeline de CI/CD — bloquea directamente el pendiente 2.
+7. **Definir el campo real de antigüedad de deuda** (o confirmar que la regla de 10 meses no aplica a esta POC) y, si corresponde, el XSD productivo real — ambos siguen simulados con datos inventados.
+8. **Resolver la ambigüedad del layout de pie productivo** (346 vs. 348 bytes) contra una fuente autorizada, o confirmar formalmente que queda fuera de alcance de esta POC.
+9. **Obtener evidencia de rechazo/error del lado de ADF** (hoy solo hay corridas exitosas) y de su comportamiento de polling/reprocesamiento.
+10. **Confirmar el vínculo de las otras 2 corridas de ADF** (306 s y 23 s, §3.1) con el archivo de 660.000, o descartarlas de cualquier comparación si corresponden a otro lote/tamaño.
 
 ---
 
@@ -172,14 +204,15 @@ Con la evidencia disponible a la fecha de este reporte:
 
 - **No se recomienda** tomar una decisión de arquitectura (elegir Data Flow vs. Container App como solución definitiva) basada en los tiempos de este reporte: las mediciones no son metodológicamente comparables (entornos distintos, configuraciones distintas, sin corrida controlada).
 - **Sí se puede afirmar**, con la evidencia disponible, que **ambas opciones completan el volumen de 660.000 detalles sin errores** en sus respectivas corridas citadas — esto valida que ninguna de las dos opciones está descartada por incapacidad de procesar el volumen objetivo.
-- **Se recomienda priorizar los pendientes 1, 2 y 5** de la sección anterior (export de ADF, `compare-adf` contra salida real, y corrida del motor dentro de Azure real) antes de emitir cualquier comparación de performance o costo con valor de decisión.
+- **Se recomienda priorizar los pendientes 1 y 2** de la sección anterior (repeticiones bajo la configuración ya alineada, y corrida del motor dentro de Azure Container Apps real) antes de emitir cualquier comparación de performance o costo con valor de decisión — la variación de 2× encontrada entre dos corridas locales de la misma configuración (§3.2bis) es, hoy, más grande que cualquier diferencia que se quiera atribuir a ADF vs. el motor.
 - Esta recomendación **no constituye** una afirmación de conformidad total con requisitos productivos, de cumplimiento de SLA, ni de ventaja de costo — ninguna de las dos está evaluada todavía con evidencia suficiente para eso.
 
 ---
 
 ## 9. Índice de fuentes
 
-- Esta sesión de trabajo (2026-09-23): capturas de Azure Monitor/consulta de ejecución de `PL_EJECUTAR_ETL_POC_REAL` y de la actividad `DF_GENERAR_BANELCO_copy1`, provistas por el usuario; capturas del diseño del Data Flow (`SRCSAP`, `DS_ENTRADA_REAL_TXT`, `LS_ADLS_POC`); benchmarks del motor `etl_pmc` (4 corridas contra 660.000 detalles, corridas contra `entrada_real_1000.txt` con distintos flags).
+- Esta sesión de trabajo (2026-09-23): capturas de Azure Monitor/consulta de ejecución de `PL_EJECUTAR_ETL_POC_REAL` y de la actividad `DF_GENERAR_BANELCO_copy1`, provistas por el usuario; capturas del diseño del Data Flow (`SRCSAP`, `DS_ENTRADA_REAL_TXT`, `LS_ADLS_POC`); benchmarks del motor `etl_pmc` (5 corridas contra 660.000 detalles — 4 originales más la corrida alineada §3.2bis —, corridas contra `entrada_real_1000.txt` con distintos flags); confirmación verbal del responsable sobre identidad de archivo y flags de la corrida de ADF.
+- `docs/SQLQuery7.csv` — 100 filas de muestra de `intdb.vw_EnrichmentPoc`, y la query real de extracción de configuración (`SELECT TOP (1) ... WHERE LoteId = 'LOTE001' ORDER BY CodEntidad`) provista por el usuario — fuente de la limpieza de `CodBanco`/`CodigoServicio` en §4.
 - `docs/matriz_equivalencia.md` — reglas confirmadas/propuestas/supuestas/inventadas, con su origen.
 - `docs/supuestos_y_pendientes.md` — limitaciones conocidas, benchmark histórico del motor (1.000/100.000/660.000 filas sin schema), hallazgos de escala.
 - `docs/gdc1000_vs_container_app.md` — checklist paso a paso GDC-1000 vs. implementación.

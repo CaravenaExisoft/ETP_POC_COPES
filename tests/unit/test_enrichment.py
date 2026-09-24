@@ -106,3 +106,28 @@ def test_record_join_columna_ausente():
     with pytest.raises(EnrichmentError) as exc:
         construir_indice([{"IdDeuda": "1"}], config)
     assert exc.value.codigo == "COLUMNA_AUSENTE"
+
+
+def test_single_configuration_limpia_prefijo_de_letra_confirmado_por_sql():
+    # Datos reales de vw_EnrichmentPoc (100 filas de muestra, docs/SQLQuery7.csv):
+    # CodBanco='B001', CodigoServicio='S0001' -- la query real de SQL los
+    # limpia a '001'/'0001' antes de que lleguen al CSV; este motor replica
+    # esa misma limpieza por si el CSV llega sin limpiar.
+    filas = [{"CodEntidad": "1", "Descripcion": "POC Entidad 001", "CodBanco": "B001", "CodigoServicio": "S0001"}]
+    config = cargar_single_configuration(filas)
+    assert config.cod_banco == "001"
+    assert config.codigo_servicio == "0001"
+
+
+def test_single_configuration_limpia_comillas_embebidas():
+    filas = [{"CodEntidad": "1", "Descripcion": "X", "CodBanco": "'B001'", "CodigoServicio": "'S0001'"}]
+    config = cargar_single_configuration(filas)
+    assert config.cod_banco == "001"
+    assert config.codigo_servicio == "0001"
+
+
+def test_single_configuration_valor_ya_limpio_es_idempotente():
+    filas = [{"CodEntidad": "1", "Descripcion": "X", "CodBanco": "001", "CodigoServicio": "0001"}]
+    config = cargar_single_configuration(filas)
+    assert config.cod_banco == "001"
+    assert config.codigo_servicio == "0001"
