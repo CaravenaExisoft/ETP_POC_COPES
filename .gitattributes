@@ -1,0 +1,9 @@
+# Scripts de shell: forzar LF siempre, sin importar core.autocrlf de quien
+# clone el repo. Un .sh con CRLF falla en bash con errores tipo
+# "$'\r': command not found".
+*.sh text eol=lf
+
+# Fixtures de ancho fijo con CRLF que es parte del FORMATO DE DATOS, no estilo
+# de editor: nunca se debe normalizar ni tocar un byte.
+docs/entrada_real_1000.txt binary
+tests/fixtures/real/entrada_real_1000.txt binary
